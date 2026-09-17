@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Monitoring Kotak P3K</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/index.css">
+<style>
+* { font-family: 'Inter', sans-serif; }
+.tab-active { background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; box-shadow: 0 4px 15px rgba(220,38,38,0.3); }
+.card-hover { transition: all 0.3s ease; }
+.card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.12); }
+.status-bar { transition: width 0.8s ease; }
+.fade-in { animation: fadeIn 0.4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.pulse-dot { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+}
+.login-bg {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 50%, #fca5a5 100%);
+}
+.shake { animation: shake 0.4s ease; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen" class="login-bg min-h-screen flex items-center justify-center p-4">
+  <div id="loginCard" class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md fade-in">
+    <div class="flex justify-center mb-6">
+      <div class="w-20 h-20 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl flex items-center justify-center shadow-xl">
+        <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 10h-4v4h-4v-4H6v-4h4V5h4v4h4v4z"/>
+        </svg>
+      </div>
+    </div>
+    <h1 class="text-2xl font-bold text-center text-gray-800 mb-1">Monitoring P3K</h1>
+    <p class="text-center text-gray-500 text-sm mb-6">Silakan login untuk melanjutkan</p>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Role / Peran</label>
+        <select id="loginRole" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          <option value="admin">👨‍💼 Admin (Full Access)</option>
+          <option value="user">👤 User (View & Input)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+        <input type="password" id="loginPassword" placeholder="Masukkan password" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+        <p class="text-xs text-gray-400 mt-1">💡 Default — Admin: <code class="bg-gray-100 px-1 rounded">admin123</code> | User: <code class="bg-gray-100 px-1 rounded">user123</code></p>
+      </div>
+      <div id="loginError" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-sm"></div>
+      <button type="button" onclick="doLogin()" class="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-200">
+        🔐 Masuk
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="mainApp" class="max-w-7xl mx-auto px-4 py-6 hidden">
+  <header class="flex items-center justify-between mb-8 no-print">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-700 rounded-xl flex items-center justify-center shadow-lg">
+        <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 10h-4v4h-4v-4H6v-4h4V5h4v4h4v4z"/></svg>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Monitoring Kotak P3K</h1>
+        <p class="text-sm text-gray-500">Sistem Pemantauan Kotak P3K</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="text-right hidden md:block">
+        <p class="text-sm text-gray-500" id="currentDate"></p>
+        <p class="text-xs text-gray-400" id="currentTime"></p>
+      </div>
+      <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" id="userAvatar"></div>
+        <div class="hidden sm:block">
+          <p class="text-sm font-semibold text-gray-700" id="userName"></p>
+          <p class="text-xs text-gray-400" id="userRole"></p>
+        </div>
+      </div>
+      <button onclick="doLogout()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-all" title="Logout">🚪</button>
+    </div>
+  </header>
+
+  <nav class="flex gap-2 mb-8 no-print overflow-x-auto pb-2" id="navTabs">
+    <button onclick="showView('dashboard')" id="tab-dashboard" class="tab-btn px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all tab-active">📊 Dashboard</button>
+    <button onclick="showView('boxes')" id="tab-boxes" class="tab-btn px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">📦 Kotak P3K</button>
+    <button onclick="showView('usage')" id="tab-usage" class="tab-btn px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">📝 Catat Pemakaian</button>
+    <button onclick="showView('log')" id="tab-log" class="tab-btn px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">📋 Log Pemakaian</button>
+    <button onclick="showView('reports')" id="tab-reports" class="tab-btn px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">📈 Laporan</button>
+    <button onclick="showView('admin-items')" id="tab-admin-items" class="tab-btn admin-only px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">💊 Kelola Item</button>
+    <button onclick="showView('admin-locations')" id="tab-admin-locations" class="tab-btn admin-only px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">📍 Kelola Lokasi</button>
+    <button onclick="showView('admin-data')" id="tab-admin-data" class="tab-btn admin-only px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all bg-white text-gray-600 hover:bg-gray-100">⚙️ Manajemen Data</button>
+  </nav>
+
+  <!-- Dashboard -->
+  <div id="view-dashboard" class="view fade-in">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div><p class="text-sm text-gray-500">Total Kotak</p><p class="text-3xl font-bold text-gray-800" id="statTotalBoxes">0</p></div>
+          <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 17H5V5h14v14z"/></svg></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div><p class="text-sm text-gray-500">Status Aman</p><p class="text-3xl font-bold text-green-600" id="safeCount">0</p></div>
+          <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div><p class="text-sm text-gray-500">Stok Menipis</p><p class="text-3xl font-bold text-yellow-600" id="lowCount">0</p></div>
+          <div class="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-yellow-500" fill="currentColor" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div><p class="text-sm text-gray-500">Kritis</p><p class="text-3xl font-bold text-red-600" id="criticalCount">0</p></div>
+          <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg></div>
+        </div>
+      </div>
+    </div>
+    <h2 class="text-lg font-bold text-gray-800 mb-4">Status Per Lokasi</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="floorCards"></div>
+    <div class="mt-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">Aktivitas Terakhir</h2>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tanggal</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lokasi</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Item</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Jumlah</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="recentActivity" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Boxes -->
+  <div id="view-boxes" class="view hidden fade-in">
+    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <h2 class="text-lg font-bold text-gray-800">Daftar Isi Kotak P3K</h2>
+      <select id="boxFloorFilter" onchange="renderBoxDetail()" class="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></select>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">No</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nama Item</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Satuan</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Stok Standar</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Safety Stock</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Stok Saat Ini</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Progress</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase admin-only">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="boxDetailTable" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage -->
+  <div id="view-usage" class="view hidden fade-in">
+    <h2 class="text-lg font-bold text-gray-800 mb-6">Form Pencatatan Pemakaian</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <span class="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-500">📝</span>Form Pemakaian
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Lokasi</label>
+            <select id="usageFloor" onchange="updateUsageItems()" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Tanggal</label>
+            <input type="date" id="usageDate" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Item</label>
+            <select id="usageItem" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Jumlah Pakai</label>
+            <input type="number" id="usageQty" min="1" value="1" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Keterangan</label>
+            <textarea id="usageNote" rows="3" placeholder="Contoh: Digunakan untuk luka karyawan" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
+          </div>
+          <button onclick="submitUsage()" class="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-200">💾 Simpan Pemakaian</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 admin-only">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <span class="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center text-green-500">🔄</span>Form Restock
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Lokasi</label>
+            <select id="restockFloor" onchange="updateRestockItems()" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Tanggal</label>
+            <input type="date" id="restockDate" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Item</label>
+            <select id="restockItem" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Jumlah Restock</label>
+            <input type="number" id="restockQty" min="1" value="1" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Keterangan</label>
+            <textarea id="restockNote" rows="3" placeholder="Contoh: Pengisian bulanan" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"></textarea>
+          </div>
+          <button onclick="submitRestock()" class="w-full py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transition-all shadow-lg shadow-green-200">🔄 Simpan Restock</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div id="view-log" class="view hidden fade-in">
+    <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+      <h2 class="text-lg font-bold text-gray-800">Log Pemakaian & Restock</h2>
+      <div class="flex gap-3 flex-wrap">
+        <select id="logFloorFilter" onchange="renderLog()" class="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          <option value="all">Semua Lokasi</option>
+        </select>
+        <select id="logTypeFilter" onchange="renderLog()" class="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          <option value="all">Semua Tipe</option>
+          <option value="usage">Pemakaian</option>
+          <option value="restock">Restock</option>
+        </select>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tanggal</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Tipe</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lokasi</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Item</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Jumlah</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Keterangan</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase admin-only">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="logTable" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reports -->
+  <div id="view-reports" class="view hidden fade-in">
+    <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+      <h2 class="text-lg font-bold text-gray-800">Laporan Bulanan</h2>
+      <div class="flex gap-3 flex-wrap">
+        <select id="reportMonth" onchange="renderReport()" class="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></select>
+        <select id="reportFloor" onchange="renderReport()" class="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          <option value="all">Global (Semua Lokasi)</option>
+        </select>
+        <button onclick="exportReportCSV()" class="px-5 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-all no-print">📥 Export CSV</button>
+        <button onclick="printReport()" class="px-5 py-2 bg-gray-800 text-white rounded-xl text-sm font-medium hover:bg-gray-700 transition-all no-print">🖨️ Cetak</button>
+      </div>
+    </div>
+    <div id="reportContent">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <p class="text-sm text-gray-500">Total Pemakaian</p>
+          <p class="text-3xl font-bold text-red-600" id="reportTotalUsage">0</p>
+          <p class="text-xs text-gray-400 mt-1">item terpakai</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <p class="text-sm text-gray-500">Total Restock</p>
+          <p class="text-3xl font-bold text-green-600" id="reportTotalRestock">0</p>
+          <p class="text-xs text-gray-400 mt-1">item diisi ulang</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <p class="text-sm text-gray-500">Transaksi</p>
+          <p class="text-3xl font-bold text-blue-600" id="reportTotalTx">0</p>
+          <p class="text-xs text-gray-400 mt-1">kali pencatatan</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 class="font-semibold text-gray-700 mb-4">Pemakaian Per Item</h3>
+          <canvas id="reportChart1" height="250"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 class="font-semibold text-gray-700 mb-4">Pemakaian Per Lokasi</h3>
+          <canvas id="reportChart2" height="250"></canvas>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100"><h3 class="font-semibold text-gray-700">Detail Laporan</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tanggal</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Tipe</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lokasi</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Item</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Jumlah</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="reportTable" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: Items -->
+  <div id="view-admin-items" class="view hidden fade-in">
+    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-gray-800">💊 Kelola Daftar Item P3K</h2>
+        <p class="text-sm text-gray-500">Tambah, edit, atau hapus item obat yang tersedia di kotak P3K</p>
+      </div>
+      <button onclick="openItemModal()" class="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-sm font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-200">+ Tambah Item</button>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">No</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nama Item</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Satuan</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Stok Standar</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Safety Stock</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Jumlah Lokasi</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="itemsTable" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: Locations -->
+  <div id="view-admin-locations" class="view hidden fade-in">
+    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-gray-800">📍 Kelola Lokasi Kotak P3K</h2>
+        <p class="text-sm text-gray-500">Tambah, edit, atau hapus lokasi kotak P3K</p>
+      </div>
+      <button onclick="openLocationModal()" class="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-sm font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-200">+ Tambah Lokasi</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="locationsGrid"></div>
+  </div>
+
+  <!-- Admin: Data -->
+  <div id="view-admin-data" class="view hidden fade-in">
+    <h2 class="text-lg font-bold text-gray-800 mb-2">⚙️ Manajemen Data</h2>
+    <p class="text-sm text-gray-500 mb-6">Backup, restore, dan reset data sistem</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center"><span class="text-2xl">💾</span></div>
+          <div><h3 class="font-bold text-gray-800">Backup Data</h3><p class="text-xs text-gray-500">Download seluruh data sebagai file JSON</p></div>
+        </div>
+        <button onclick="backupData()" class="w-full py-2.5 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all">📥 Download Backup</button>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center"><span class="text-2xl">📤</span></div>
+          <div><h3 class="font-bold text-gray-800">Restore Data</h3><p class="text-xs text-gray-500">Upload file backup JSON</p></div>
+        </div>
+        <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="restoreData(event)">
+        <button onclick="document.getElementById('restoreFile').click()" class="w-full py-2.5 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-all">📤 Upload & Restore</button>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center"><span class="text-2xl">🗑️</span></div>
+          <div><h3 class="font-bold text-gray-800">Hapus Semua Log</h3><p class="text-xs text-gray-500">Hapus seluruh riwayat pemakaian & restock</p></div>
+        </div>
+        <button onclick="clearAllLogs()" class="w-full py-2.5 bg-yellow-500 text-white rounded-xl font-medium hover:bg-yellow-600 transition-all">🗑️ Hapus Semua Log</button>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-red-200 p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center"><span class="text-2xl">⚠️</span></div>
+          <div><h3 class="font-bold text-red-700">Reset Sistem</h3><p class="text-xs text-gray-500">Kembalikan ke data default (semua data hilang)</p></div>
+        </div>
+        <button onclick="resetSystem()" class="w-full py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all">⚠️ Reset ke Default</button>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="font-bold text-gray-800 mb-4">🔑 Ubah Password</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Password Admin Baru</label>
+          <input type="password" id="newAdminPass" placeholder="Minimal 4 karakter" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Password User Baru</label>
+          <input type="password" id="newUserPass" placeholder="Minimal 4 karakter" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+        </div>
+      </div>
+      <button onclick="changePasswords()" class="mt-4 px-5 py-2.5 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-700 transition-all">💾 Simpan Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-6 right-6 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg transform translate-x-full transition-transform duration-300 z-50">
+  <p id="toastMsg" class="font-medium text-sm"></p>
+</div>
+
+<!-- Modal: Item -->
+<div id="itemModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+    <h3 class="font-bold text-gray-800 mb-4" id="itemModalTitle">Tambah Item</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Nama Item</label>
+        <input type="text" id="itemName" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Satuan</label>
+        <input type="text" id="itemUnit" placeholder="pcs, roll, botol, dll" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Stok Standar</label>
+          <input type="number" id="itemStandard" min="1" value="10" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Safety Stock</label>
+          <input type="number" id="itemSafety" min="0" value="3" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeItemModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all">Batal</button>
+      <button onclick="saveItem()" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Location -->
+<div id="locationModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+    <h3 class="font-bold text-gray-800 mb-4" id="locationModalTitle">Tambah Lokasi</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Nama Lokasi</label>
+        <input type="text" id="locationName" placeholder="Contoh: Lantai 1, Gedung A, dll" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Deskripsi (opsional)</label>
+        <input type="text" id="locationDesc" placeholder="Contoh: Dekat ruang meeting" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+      </div>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeLocationModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all">Batal</button>
+      <button onclick="saveLocation()" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Restock Quick -->
+<div id="restockModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+    <h3 class="font-bold text-gray-800 mb-4" id="restockModalTitle">Restock Item</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Jumlah untuk mengisi</label>
+        <input type="number" id="restockModalQty" min="1" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+      </div>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeRestockModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all">Batal</button>
+      <button onclick="confirmRestock()" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all">Konfirmasi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DEFAULT DATA ====================
+const DEFAULT_ITEMS = [
+  { name: "Plester / Band-Aid", unit: "pcs", standard: 20, safety: 5 },
+  { name: "Kasa Steril 16x16", unit: "pcs", standard: 10, safety: 3 },
+  { name: "Perban Elastis 5cm", unit: "roll", standard: 5, safety: 2 },
+  { name: "Perban Luka 5cm", unit: "roll", standard: 10, safety: 3 },
+  { name: "Kapas Alkohol", unit: "pack", standard: 5, safety: 2 },
+  { name: "Alkohol Swab", unit: "pcs", standard: 20, safety: 5 },
+  { name: "Betadine (Povidone Iodine)", unit: "botol", standard: 2, safety: 1 },
+  { name: "Alkohol 70%", unit: "botol", standard: 2, safety: 1 },
+  { name: "Gunting Medis", unit: "pcs", standard: 1, safety: 1 },
+  { name: "Pinset", unit: "pcs", standard: 1, safety: 1 },
+  { name: "Termometer", unit: "pcs", standard: 1, safety: 1 },
+  { name: "Sarung Tangan Latex", unit: "pasang", standard: 5, safety: 2 },
+  { name: "Masker Medis", unit: "pcs", standard: 10, safety: 3 },
+  { name: "Paracetamol", unit: "strip", standard: 10, safety: 3 },
+  { name: "Obat Merah", unit: "botol", standard: 1, safety: 1 },
+  { name: "Minyak Kayu Putih", unit: "botol", standard: 1, safety: 1 },
+  { name: "Tolak Angin", unit: "sachet", standard: 5, safety: 2 },
+  { name: "Oralit", unit: "sachet", standard: 5, safety: 2 },
+  { name: "Hansaplast Spray", unit: "botol", standard: 1, safety: 1 },
+  { name: "Burn Gel", unit: "sachet", standard: 3, safety: 1 },
+  { name: "Kain Mitella", unit: "pcs", standard: 2, safety: 1 },
+  { name: "Buku Panduan P3K", unit: "pcs", standard: 1, safety: 1 }
+];
+
+const DEFAULT_LOCATIONS = [
+  { name: "Lantai 1", desc: "Lobby utama" },
+  { name: "Lantai 2", desc: "Area kantor" },
+  { name: "Lantai 3", desc: "Area kantor" },
+  { name: "Lantai 4", desc: "Area kantor" },
+  { name: "Lantai 5", desc: "Area kantor" },
+  { name: "Lantai 6", desc: "Area manajemen" }
+];
+
+const DEFAULT_PASSWORDS = { admin: "admin123", user: "user123" };
+
+// ==================== STATE ====================
+let state = null;
+let currentUser = null;
+let chart1Instance = null;
+let chart2Instance = null;
+let restockModalData = null;
+let editingItemIdx = null;
+let editingLocationIdx = null;
+
+function createDefaultState() {
+  const boxes = DEFAULT_LOCATIONS.map((loc, i) => ({
+    id: i,
+    name: loc.name,
+    desc: loc.desc || '',
+    items: DEFAULT_ITEMS.map(item => ({ ...item, current: item.standard }))
+  }));
+  return {
+    boxes: boxes,
+    logs: [],
+    passwords: { ...DEFAULT_PASSWORDS }
+  };
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('p3k_monitor_v2');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Validate structure
+      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid data');
+      if (!Array.isArray(parsed.boxes) || parsed.boxes.length === 0) throw new Error('No boxes');
+      if (!Array.isArray(parsed.logs)) parsed.logs = [];
+      if (!parsed.passwords || typeof parsed.passwords !== 'object') {
+        parsed.passwords = { ...DEFAULT_PASSWORDS };
+      }
+      // Ensure both password keys exist
+      if (!parsed.passwords.admin) parsed.passwords.admin = DEFAULT_PASSWORDS.admin;
+      if (!parsed.passwords.user) parsed.passwords.user = DEFAULT_PASSWORDS.user;
+      return parsed;
+    }
+  } catch (err) {
+    console.warn('Load state error, using default:', err);
+    localStorage.removeItem('p3k_monitor_v2');
+  }
+  return createDefaultState();
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('p3k_monitor_v2', JSON.stringify(state));
+  } catch (err) {
+    console.error('Save error:', err);
+  }
+}
+
+// Initialize state immediately
+state = loadState();
+
+// ==================== AUTH ====================
+function doLogin() {
+  try {
+    const role = document.getElementById('loginRole').value;
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    const card = document.getElementById('loginCard');
+    
+    // Ensure passwords exist
+    if (!state.passwords) state.passwords = { ...DEFAULT_PASSWORDS };
+    const correctPass = state.passwords[role] || DEFAULT_PASSWORDS[role];
+    
+    if (!password || password.trim() === '') {
+      errorEl.textContent = '⚠️ Password tidak boleh kosong!';
+      errorEl.classList.remove('hidden');
+      card.classList.add('shake');
+      setTimeout(() => card.classList.remove('shake'), 400);
+      return;
+    }
+    
+    if (password !== correctPass) {
+      errorEl.textContent = '❌ Password salah! Silakan coba lagi.';
+      errorEl.classList.remove('hidden');
+      card.classList.add('shake');
+      setTimeout(() => card.classList.remove('shake'), 400);
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginPassword').focus();
+      return;
+    }
+    
+    errorEl.classList.add('hidden');
+    currentUser = { 
+      role: role, 
+      name: role === 'admin' ? 'Administrator' : 'User' 
+    };
+    
+    try {
+      sessionStorage.setItem('p3k_user', JSON.stringify(currentUser));
+    } catch (e) {
+      console.warn('Session storage unavailable');
+    }
+    
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    
+    initApp();
+  } catch (err) {
+    console.error('Login error:', err);
+    const errorEl = document.getElementById('loginError');
+    errorEl.textContent = '❌ Terjadi kesalahan: ' + err.message;
+    errorEl.classList.remove('hidden');
+  }
+}
+
+function doLogout() {
+  if (!confirm('Yakin ingin keluar?')) return;
+  try { sessionStorage.removeItem('p3k_user'); } catch(e) {}
+  currentUser = null;
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').classList.add('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function checkSession() {
+  try {
+    const saved = sessionStorage.getItem('p3k_user');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      initApp();
+    }
+  } catch (e) {
+    console.warn('Session check error:', e);
+  }
+}
+
+// ==================== HELPERS ====================
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function formatDate(dateStr) {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch { return dateStr; }
+}
+
+function getStatus(item) {
+  if (!item || typeof item.current !== 'number') return { label: 'N/A', color: 'gray', bg: 'bg-gray-100', text: 'text-gray-700', bar: 'bg-gray-400' };
+  if (item.current <= 0) return { label: 'Habis', color: 'red', bg: 'bg-red-100', text: 'text-red-700', bar: 'bg-red-500' };
+  if (item.current <= item.safety) return { label: 'Kritis', color: 'red', bg: 'bg-red-50', text: 'text-red-600', bar: 'bg-red-400' };
+  if (item.current <= item.safety * 2) return { label: 'Menipis', color: 'yellow', bg: 'bg-yellow-50', text: 'text-yellow-700', bar: 'bg-yellow-400' };
+  return { label: 'Aman', color: 'green', bg: 'bg-green-50', text: 'text-green-700', bar: 'bg-green-400' };
+}
+
+function getBoxStatus(box) {
+  let safe = 0, low = 0, critical = 0;
+  if (!box || !box.items) return { safe, low, critical };
+  box.items.forEach(item => {
+    const s = getStatus(item);
+    if (s.color === 'green') safe++;
+    else if (s.color === 'yellow') low++;
+    else if (s.color === 'red') critical++;
+  });
+  return { safe, low, critical };
+}
+
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  toastMsg.textContent = msg;
+  toast.className = `fixed top-6 right-6 px-6 py-3 rounded-xl shadow-lg transform transition-transform duration-300 z-50 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-yellow-500'} text-white`;
+  toast.classList.remove('translate-x-full');
+  setTimeout(() => toast.classList.add('translate-x-full'), 3000);
+}
+
+function getLocationName(idx) {
+  if (idx === -1 || !state.boxes[idx]) return 'Lokasi Dihapus';
+  return state.boxes[idx].name;
+}
+
+// ==================== INIT APP ====================
+function initApp() {
+  try {
+    if (!currentUser) return;
+    
+    const avatar = document.getElementById('userAvatar');
+    avatar.textContent = currentUser.name.charAt(0);
+    avatar.className = `w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${currentUser.role === 'admin' ? 'bg-gradient-to-br from-red-500 to-red-700' : 'bg-gradient-to-br from-blue-500 to-blue-700'}`;
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userRole').textContent = currentUser.role === 'admin' ? '👨‍💼 Administrator' : '👤 User';
+    
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.style.display = currentUser.role === 'admin' ? '' : 'none';
+    });
+    
+    populateFloorSelects();
+    
+    const usageDate = document.getElementById('usageDate');
+    const restockDate = document.getElementById('restockDate');
+    if (usageDate) usageDate.value = getToday();
+    if (restockDate) restockDate.value = getToday();
+    
+    showView('dashboard');
+  } catch (err) {
+    console.error('Init app error:', err);
+    showToast('Error init: ' + err.message, 'error');
+  }
+}
+
+function populateFloorSelects() {
+  try {
+    const selects = ['boxFloorFilter', 'usageFloor', 'restockFloor'];
+    selects.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = state.boxes.map((box, i) => 
+        `<option value="${i}">${box.name}</option>`
+      ).join('');
+    });
+    
+    const logFilter = document.getElementById('logFloorFilter');
+    if (logFilter) {
+      logFilter.innerHTML = '<option value="all">Semua Lokasi</option>' + 
+        state.boxes.map((box, i) => `<option value="${i}">${box.name}</option>`).join('');
+    }
+    
+    const reportFilter = document.getElementById('reportFloor');
+    if (reportFilter) {
+      reportFilter.innerHTML = '<option value="all">Global (Semua Lokasi)</option>' + 
+        state.boxes.map((box, i) => `<option value="${i}">${box.name}</option>`).join('');
+    }
+  } catch (err) {
+    console.error('Populate selects error:', err);
+  }
+}
+
+// ==================== NAVIGATION ====================
+function showView(view) {
+  const adminViews = ['admin-items', 'admin-locations', 'admin-data'];
+  if (adminViews.includes(view) && (!currentUser || currentUser.role !== 'admin')) {
+    showToast('Akses ditolak! Hanya admin.', 'error');
+    return;
+  }
+  
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  const targetView = document.getElementById(`view-${view}`);
+  if (targetView) targetView.classList.remove('hidden');
+  
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('tab-active');
+    btn.classList.add('bg-white', 'text-gray-600');
+  });
+  const tab = document.getElementById(`tab-${view}`);
+  if (tab) {
+    tab.classList.add('tab-active');
+    tab.classList.remove('bg-white', 'text-gray-600');
+  }
+  
+  try {
+    if (view === 'dashboard') renderDashboard();
+    else if (view === 'boxes') renderBoxDetail();
+    else if (view === 'usage') { updateUsageItems(); updateRestockItems(); }
+    else if (view === 'log') renderLog();
+    else if (view === 'reports') initReports();
+    else if (view === 'admin-items') renderItemsTable();
+    else if (view === 'admin-locations') renderLocationsGrid();
+  } catch (err) {
+    console.error('Render view error:', err);
+    showToast('Error render: ' + err.message, 'error');
+  }
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+  let totalSafe = 0, totalLow = 0, totalCritical = 0;
+  const floorCards = document.getElementById('floorCards');
+  floorCards.innerHTML = '';
+  document.getElementById('statTotalBoxes').textContent = state.boxes.length;
+  
+  state.boxes.forEach((box, idx) => {
+    const status = getBoxStatus(box);
+    totalSafe += status.safe;
+    totalLow += status.low;
+    totalCritical += status.critical;
+    
+    const overallPercent = box.items.length > 0 ? Math.round((status.safe / box.items.length) * 100) : 0;
+    const overallColor = status.critical > 0 ? 'red' : status.low > 0 ? 'yellow' : 'green';
+    
+    floorCards.innerHTML += `
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 card-hover cursor-pointer" onclick="showView('boxes'); document.getElementById('boxFloorFilter').value='${idx}'; renderBoxDetail();">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-${overallColor}-50 rounded-xl flex items-center justify-center">
+              <svg class="w-5 h-5 text-${overallColor}-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-800">${box.name}</h3>
+              <p class="text-xs text-gray-400">${box.desc || box.items.length + ' item'}</p>
+            </div>
+          </div>
+          ${status.critical > 0 ? '<span class="pulse-dot w-3 h-3 bg-red-500 rounded-full"></span>' : ''}
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <div class="text-center p-2 bg-green-50 rounded-lg"><p class="text-lg font-bold text-green-600">${status.safe}</p><p class="text-xs text-green-500">Aman</p></div>
+          <div class="text-center p-2 bg-yellow-50 rounded-lg"><p class="text-lg font-bold text-yellow-600">${status.low}</p><p class="text-xs text-yellow-500">Menipis</p></div>
+          <div class="text-center p-2 bg-red-50 rounded-lg"><p class="text-lg font-bold text-red-600">${status.critical}</p><p class="text-xs text-red-500">Kritis</p></div>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-2">
+          <div class="status-bar h-2 rounded-full bg-${overallColor}-400" style="width: ${overallPercent}%"></div>
+        </div>
+        <p class="text-xs text-gray-400 mt-1 text-right">${overallPercent}% kondisi baik</p>
+      </div>
+    `;
+  });
+  
+  document.getElementById('safeCount').textContent = totalSafe;
+  document.getElementById('lowCount').textContent = totalLow;
+  document.getElementById('criticalCount').textContent = totalCritical;
+  
+  const recent = [...state.logs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+  const recentEl = document.getElementById('recentActivity');
+  if (recent.length === 0) {
+    recentEl.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Belum ada aktivitas</td></tr>';
+  } else {
+    recentEl.innerHTML = recent.map(log => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 text-sm text-gray-600">${formatDate(log.date)}</td>
+        <td class="px-4 py-3"><span class="px-2 py-1 text-xs font-medium rounded-lg ${log.type === 'usage' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}">${log.type === 'usage' ? 'Pakai' : 'Restock'}</span></td>
+        <td class="px-4 py-3 text-sm text-gray-700 font-medium">${getLocationName(log.floorIdx)}</td>
+        <td class="px-4 py-3 text-sm text-gray-600">${log.itemName}</td>
+        <td class="px-4 py-3 text-sm font-semibold ${log.type === 'usage' ? 'text-red-600' : 'text-green-600'}">${log.type === 'usage' ? '-' : '+'}${log.qty} ${log.unit}</td>
+        <td class="px-4 py-3 text-sm text-gray-500">${log.note || '-'}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+// ==================== BOX DETAIL ====================
+function renderBoxDetail() {
+  const floorIdx = parseInt(document.getElementById('boxFloorFilter').value);
+  const box = state.boxes[floorIdx];
+  if (!box) return;
+  const table = document.getElementById('boxDetailTable');
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  
+  table.innerHTML = box.items.map((item, idx) => {
+    const status = getStatus(item);
+    const percent = Math.min(100, Math.round((item.current / item.standard) * 100));
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 text-sm text-gray-500">${idx + 1}</td>
+        <td class="px-4 py-3 text-sm font-medium text-gray-800">${item.name}</td>
+        <td class="px-4 py-3 text-sm text-gray-500">${item.unit}</td>
+        <td class="px-4 py-3 text-sm text-center text-gray-600">${item.standard}</td>
+        <td class="px-4 py-3 text-sm text-center text-gray-600">${item.safety}</td>
+        <td class="px-4 py-3 text-sm text-center font-bold ${status.text}">${item.current}</td>
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-20 bg-gray-100 rounded-full h-2"><div class="status-bar h-2 rounded-full ${status.bar}" style="width: ${percent}%"></div></div>
+            <span class="text-xs text-gray-400">${percent}%</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-center"><span class="px-2.5 py-1 text-xs font-semibold rounded-lg ${status.bg} ${status.text}">${status.label}</span></td>
+        <td class="px-4 py-3 text-center">
+          ${isAdmin ? `<button onclick="openRestockModal(${floorIdx}, ${idx})" class="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium hover:bg-green-100 transition-all">+ Restock</button>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ==================== USAGE FORM ====================
+function updateUsageItems() {
+  const floorIdx = parseInt(document.getElementById('usageFloor').value);
+  const box = state.boxes[floorIdx];
+  if (!box) return;
+  const select = document.getElementById('usageItem');
+  select.innerHTML = box.items.map((item, idx) => 
+    `<option value="${idx}">${item.name} (Stok: ${item.current} ${item.unit})</option>`
+  ).join('');
+}
+
+function updateRestockItems() {
+  const floorIdx = parseInt(document.getElementById('restockFloor').value);
+  const box = state.boxes[floorIdx];
+  if (!box) return;
+  const select = document.getElementById('restockItem');
+  select.innerHTML = box.items.map((item, idx) => 
+    `<option value="${idx}">${item.name} (Stok: ${item.current} ${item.unit})</option>`
+  ).join('');
+}
+
+function submitUsage() {
+  const floorIdx = parseInt(document.getElementById('usageFloor').value);
+  const date = document.getElementById('usageDate').value;
+  const itemIdx = parseInt(document.getElementById('usageItem').value);
+  const qty = parseInt(document.getElementById('usageQty').value);
+  const note = document.getElementById('usageNote').value;
+  
+  if (!date) { showToast('Tanggal harus diisi!', 'error'); return; }
+  if (!qty || qty < 1) { showToast('Jumlah harus minimal 1!', 'error'); return; }
+  
+  const box = state.boxes[floorIdx];
+  if (!box) { showToast('Lokasi tidak ditemukan!', 'error'); return; }
+  const item = box.items[itemIdx];
+  if (!item) { showToast('Item tidak ditemukan!', 'error'); return; }
+  
+  if (qty > item.current) {
+    showToast(`Stok tidak cukup! Tersedia: ${item.current} ${item.unit}`, 'error');
+    return;
+  }
+  
+  item.current -= qty;
+  state.logs.push({
+    id: Date.now(),
+    type: 'usage',
+    date: date,
+    floorIdx: floorIdx,
+    itemIdx: itemIdx,
+    itemName: item.name,
+    unit: item.unit,
+    qty: qty,
+    note: note,
+    recordedBy: currentUser ? currentUser.name : 'Unknown',
+    recordedAt: new Date().toISOString()
+  });
+  
+  saveState();
+  showToast(`Pemakaian ${qty} ${item.unit} ${item.name} berhasil dicatat!`);
+  document.getElementById('usageQty').value = 1;
+  document.getElementById('usageNote').value = '';
+  updateUsageItems();
+}
+
+function submitRestock() {
+  if (!currentUser || currentUser.role !== 'admin') {
+    showToast('Hanya admin yang bisa restock!', 'error');
+    return;
+  }
+  const floorIdx = parseInt(document.getElementById('restockFloor').value);
+  const date = document.getElementById('restockDate').value;
+  const itemIdx = parseInt(document.getElementById('restockItem').value);
+  const qty = parseInt(document.getElementById('restockQty').value);
+  const note = document.getElementById('restockNote').value;
+  
+  if (!date) { showToast('Tanggal harus diisi!', 'error'); return; }
+  if (!qty || qty < 1) { showToast('Jumlah harus minimal 1!', 'error'); return; }
+  
+  const box = state.boxes[floorIdx];
+  if (!box) { showToast('Lokasi tidak ditemukan!', 'error'); return; }
+  const item = box.items[itemIdx];
+  if (!item) { showToast('Item tidak ditemukan!', 'error'); return; }
+  
+  item.current += qty;
+  state.logs.push({
+    id: Date.now(),
+    type: 'restock',
+    date: date,
+    floorIdx: floorIdx,
+    itemIdx: itemIdx,
+    itemName: item.name,
+    unit: item.unit,
+    qty: qty,
+    note: note,
+    recordedBy: currentUser.name,
+    recordedAt: new Date().toISOString()
+  });
+  
+  saveState();
+  showToast(`Restock ${qty} ${item.unit} ${item.name} berhasil!`);
+  document.getElementById('restockQty').value = 1;
+  document.getElementById('restockNote').value = '';
+  updateRestockItems();
+}
+
+function openRestockModal(floorIdx, itemIdx) {
+  if (!currentUser || currentUser.role !== 'admin') {
+    showToast('Hanya admin yang bisa restock!', 'error');
+    return;
+  }
+  const item = state.boxes[floorIdx].items[itemIdx];
+  const needed = item.standard - item.current;
+  restockModalData = { floorIdx, itemIdx, item };
+  document.getElementById('restockModalTitle').textContent = `Restock: ${item.name}`;
+  document.getElementById('restockModalQty').value = needed > 0 ? needed : item.standard;
+  document.getElementById('restockModal').classList.remove('hidden');
+}
+
+function closeRestockModal() {
+  document.getElementById('restockModal').classList.add('hidden');
+  restockModalData = null;
+}
+
+function confirmRestock() {
+  if (!restockModalData) return;
+  const { floorIdx, itemIdx, item } = restockModalData;
+  const qty = parseInt(document.getElementById('restockModalQty').value);
+  if (!qty || qty < 1) { showToast('Jumlah tidak valid!', 'error'); return; }
+  
+  item.current += qty;
+  state.logs.push({
+    id: Date.now(),
+    type: 'restock',
+    date: getToday(),
+    floorIdx: floorIdx,
+    itemIdx: itemIdx,
+    itemName: item.name,
+    unit: item.unit,
+    qty: qty,
+    note: 'Restock cepat dari dashboard',
+    recordedBy: currentUser.name,
+    recordedAt: new Date().toISOString()
+  });
+  
+  saveState();
+  closeRestockModal();
+  renderBoxDetail();
+  showToast(`Restock ${qty} ${item.unit} berhasil!`);
+}
+
+// ==================== LOG ====================
+function renderLog() {
+  const floorFilter = document.getElementById('logFloorFilter').value;
+  const typeFilter = document.getElementById('logTypeFilter').value;
+  
+  let filtered = [...state.logs];
+  if (floorFilter !== 'all') filtered = filtered.filter(l => l.floorIdx === parseInt(floorFilter));
+  if (typeFilter !== 'all') filtered = filtered.filter(l => l.type === typeFilter);
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  const table = document.getElementById('logTable');
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  
+  if (filtered.length === 0) {
+    table.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Belum ada data log</td></tr>';
+    return;
+  }
+  
+  table.innerHTML = filtered.map(log => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-4 py-3 text-sm text-gray-600">${formatDate(log.date)}</td>
+      <td class="px-4 py-3 text-center">
+        <span class="px-2 py-1 text-xs font-medium rounded-lg ${log.type === 'usage' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}">
+          ${log.type === 'usage' ? '📉 Pakai' : '📈 Restock'}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-sm font-medium text-gray-700">${getLocationName(log.floorIdx)}</td>
+      <td class="px-4 py-3 text-sm text-gray-600">${log.itemName}</td>
+      <td class="px-4 py-3 text-sm text-center font-semibold ${log.type === 'usage' ? 'text-red-600' : 'text-green-600'}">
+        ${log.type === 'usage' ? '-' : '+'}${log.qty} ${log.unit}
+      </td>
+      <td class="px-4 py-3 text-sm text-gray-500">${log.note || '-'}</td>
+      <td class="px-4 py-3 text-center">
+        ${isAdmin ? `<button onclick="deleteLog(${log.id})" class="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-all">Hapus</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function deleteLog(id) {
+  if (!currentUser || currentUser.role !== 'admin') {
+    showToast('Hanya admin yang bisa menghapus!', 'error');
+    return;
+  }
+  if (!confirm('Hapus data log ini? Stok tidak akan dikembalikan.')) return;
+  state.logs = state.logs.filter(l => l.id !== id);
+  saveState();
+  renderLog();
+  showToast('Data log berhasil dihapus', 'warning');
+}
+
+// ==================== REPORTS ====================
+function initReports() {
+  const select = document.getElementById('reportMonth');
+  const now = new Date();
+  let options = '';
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    options += `<option value="${val}">${label}</option>`;
+  }
+  select.innerHTML = options;
+  renderReport();
+}
+
+function renderReport() {
+  const month = document.getElementById('reportMonth').value;
+  const floorFilter = document.getElementById('reportFloor').value;
+  const [year, mon] = month.split('-').map(Number);
+  
+  let filtered = state.logs.filter(l => {
+    const d = new Date(l.date);
+    return d.getFullYear() === year && (d.getMonth() + 1) === mon;
+  });
+  if (floorFilter !== 'all') filtered = filtered.filter(l => l.floorIdx === parseInt(floorFilter));
+  
+  const usageLogs = filtered.filter(l => l.type === 'usage');
+  const restockLogs = filtered.filter(l => l.type === 'restock');
+  
+  document.getElementById('reportTotalUsage').textContent = usageLogs.reduce((sum, l) => sum + l.qty, 0);
+  document.getElementById('reportTotalRestock').textContent = restockLogs.reduce((sum, l) => sum + l.qty, 0);
+  document.getElementById('reportTotalTx').textContent = filtered.length;
+  
+  const itemUsage = {};
+  usageLogs.forEach(l => {
+    if (!itemUsage[l.itemName]) itemUsage[l.itemName] = 0;
+    itemUsage[l.itemName] += l.qty;
+  });
+  const sortedItems = Object.entries(itemUsage).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  
+  if (chart1Instance) chart1Instance.destroy();
+  const ctx1 = document.getElementById('reportChart1').getContext('2d');
+  chart1Instance = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: sortedItems.map(i => i[0].length > 20 ? i[0].substring(0, 20) + '...' : i[0]),
+      datasets: [{
+        label: 'Jumlah Terpakai',
+        data: sortedItems.map(i => i[1]),
+        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+        borderColor: 'rgba(239, 68, 68, 1)',
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+  });
+  
+  const floorUsage = {};
+  usageLogs.forEach(l => {
+    const name = getLocationName(l.floorIdx);
+    if (!floorUsage[name]) floorUsage[name] = 0;
+    floorUsage[name] += l.qty;
+  });
+  
+  const floorColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+  if (chart2Instance) chart2Instance.destroy();
+  const ctx2 = document.getElementById('reportChart2').getContext('2d');
+  chart2Instance = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(floorUsage).length > 0 ? Object.keys(floorUsage) : ['Tidak ada data'],
+      datasets: [{
+        data: Object.keys(floorUsage).length > 0 ? Object.values(floorUsage) : [1],
+        backgroundColor: Object.keys(floorUsage).length > 0 ? floorColors : ['#e5e7eb'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } } } }
+  });
+  
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const reportTable = document.getElementById('reportTable');
+  if (filtered.length === 0) {
+    reportTable.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Tidak ada data untuk periode ini</td></tr>';
+  } else {
+    reportTable.innerHTML = filtered.map(log => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 text-sm text-gray-600">${formatDate(log.date)}</td>
+        <td class="px-4 py-3 text-center">
+          <span class="px-2 py-1 text-xs font-medium rounded-lg ${log.type === 'usage' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}">
+            ${log.type === 'usage' ? 'Pakai' : 'Restock'}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-sm font-medium text-gray-700">${getLocationName(log.floorIdx)}</td>
+        <td class="px-4 py-3 text-sm text-gray-600">${log.itemName}</td>
+        <td class="px-4 py-3 text-sm text-center font-semibold ${log.type === 'usage' ? 'text-red-600' : 'text-green-600'}">
+          ${log.type === 'usage' ? '-' : '+'}${log.qty} ${log.unit}
+        </td>
+        <td class="px-4 py-3 text-sm text-gray-500">${log.note || '-'}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+function printReport() { window.print(); }
+
+function exportReportCSV() {
+  const month = document.getElementById('reportMonth').value;
+  const floorFilter = document.getElementById('reportFloor').value;
+  const [year, mon] = month.split('-').map(Number);
+  const monthLabel = new Date(year, mon - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  
+  let filtered = state.logs.filter(l => {
+    const d = new Date(l.date);
+    return d.getFullYear() === year && (d.getMonth() + 1) === mon;
+  });
+  if (floorFilter !== 'all') filtered = filtered.filter(l => l.floorIdx === parseInt(floorFilter));
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  let csv = `Laporan P3K - ${monthLabel}\nTanggal,Tipe,Lokasi,Item,Jumlah,Satuan,Keterangan\n`;
+  filtered.forEach(log => {
+    csv += `${log.date},${log.type === 'usage' ? 'Pemakaian' : 'Restock'},"${getLocationName(log.floorIdx)}","${log.itemName}",${log.qty},${log.unit},"${(log.note || '').replace(/"/g, '""')}"\n`;
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Laporan_P3K_${month}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast('Laporan berhasil diexport!');
+}
+
+// ==================== ADMIN: ITEMS ====================
+function renderItemsTable() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const templateItems = state.boxes[0] ? state.boxes[0].items : [];
+  const table = document.getElementById('itemsTable');
+  
+  if (templateItems.length === 0) {
+    table.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Belum ada item</td></tr>';
+    return;
+  }
+  
+  table.innerHTML = templateItems.map((item, idx) => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-4 py-3 text-sm text-gray-500">${idx + 1}</td>
+      <td class="px-4 py-3 text-sm font-medium text-gray-800">${item.name}</td>
+      <td class="px-4 py-3 text-sm text-gray-500">${item.unit}</td>
+      <td class="px-4 py-3 text-sm text-center text-gray-600">${item.standard}</td>
+      <td class="px-4 py-3 text-sm text-center text-gray-600">${item.safety}</td>
+      <td class="px-4 py-3 text-sm text-center text-gray-600">${state.boxes.length} lokasi</td>
+      <td class="px-4 py-3 text-center">
+        <div class="flex gap-2 justify-center">
+          <button onclick="openItemModal(${idx})" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-all">✏️ Edit</button>
+          <button onclick="deleteItem(${idx})" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-all">🗑️ Hapus</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openItemModal(idx = null) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  editingItemIdx = idx;
+  
+  if (idx !== null && state.boxes[0] && state.boxes[0].items[idx]) {
+    const item = state.boxes[0].items[idx];
+    document.getElementById('itemModalTitle').textContent = 'Edit Item';
+    document.getElementById('itemName').value = item.name;
+    document.getElementById('itemUnit').value = item.unit;
+    document.getElementById('itemStandard').value = item.standard;
+    document.getElementById('itemSafety').value = item.safety;
+  } else {
+    document.getElementById('itemModalTitle').textContent = 'Tambah Item';
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemUnit').value = '';
+    document.getElementById('itemStandard').value = 10;
+    document.getElementById('itemSafety').value = 3;
+  }
+  document.getElementById('itemModal').classList.remove('hidden');
+}
+
+function closeItemModal() {
+  document.getElementById('itemModal').classList.add('hidden');
+  editingItemIdx = null;
+}
+
+function saveItem() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const name = document.getElementById('itemName').value.trim();
+  const unit = document.getElementById('itemUnit').value.trim();
+  const standard = parseInt(document.getElementById('itemStandard').value);
+  const safety = parseInt(document.getElementById('itemSafety').value);
+  
+  if (!name) { showToast('Nama item harus diisi!', 'error'); return; }
+  if (!unit) { showToast('Satuan harus diisi!', 'error'); return; }
+  if (!standard || standard < 1) { showToast('Stok standar tidak valid!', 'error'); return; }
+  if (safety < 0) { showToast('Safety stock tidak valid!', 'error'); return; }
+  
+  if (editingItemIdx !== null) {
+    state.boxes.forEach(box => {
+      if (box.items[editingItemIdx]) {
+        box.items[editingItemIdx].name = name;
+        box.items[editingItemIdx].unit = unit;
+        box.items[editingItemIdx].standard = standard;
+        box.items[editingItemIdx].safety = safety;
+      }
+    });
+    showToast('Item berhasil diupdate!');
+  } else {
+    const newItem = { name, unit, standard, safety, current: standard };
+    state.boxes.forEach(box => box.items.push({ ...newItem }));
+    showToast('Item baru ditambahkan ke semua lokasi!');
+  }
+  saveState();
+  closeItemModal();
+  renderItemsTable();
+}
+
+function deleteItem(idx) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const itemName = state.boxes[0].items[idx].name;
+  if (!confirm(`Hapus item "${itemName}" dari semua kotak P3K?`)) return;
+  state.boxes.forEach(box => box.items.splice(idx, 1));
+  saveState();
+  renderItemsTable();
+  showToast('Item berhasil dihapus!', 'warning');
+}
+
+// ==================== ADMIN: LOCATIONS ====================
+function renderLocationsGrid() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const grid = document.getElementById('locationsGrid');
+  grid.innerHTML = state.boxes.map((box, idx) => {
+    const status = getBoxStatus(box);
+    return `
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-700 rounded-xl flex items-center justify-center shadow-md">
+              <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-800">${box.name}</h3>
+              <p class="text-xs text-gray-500">${box.desc || 'Tidak ada deskripsi'}</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <div class="text-center p-2 bg-green-50 rounded-lg"><p class="text-lg font-bold text-green-600">${status.safe}</p><p class="text-xs text-green-500">Aman</p></div>
+          <div class="text-center p-2 bg-yellow-50 rounded-lg"><p class="text-lg font-bold text-yellow-600">${status.low}</p><p class="text-xs text-yellow-500">Menipis</p></div>
+          <div class="text-center p-2 bg-red-50 rounded-lg"><p class="text-lg font-bold text-red-600">${status.critical}</p><p class="text-xs text-red-500">Kritis</p></div>
+        </div>
+        <p class="text-xs text-gray-400 mb-3">${box.items.length} item terdaftar</p>
+        <div class="flex gap-2">
+          <button onclick="openLocationModal(${idx})" class="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-all">✏️ Edit</button>
+          <button onclick="deleteLocation(${idx})" class="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-all">🗑️ Hapus</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openLocationModal(idx = null) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  editingLocationIdx = idx;
+  if (idx !== null && state.boxes[idx]) {
+    document.getElementById('locationModalTitle').textContent = 'Edit Lokasi';
+    document.getElementById('locationName').value = state.boxes[idx].name;
+    document.getElementById('locationDesc').value = state.boxes[idx].desc || '';
+  } else {
+    document.getElementById('locationModalTitle').textContent = 'Tambah Lokasi';
+    document.getElementById('locationName').value = '';
+    document.getElementById('locationDesc').value = '';
+  }
+  document.getElementById('locationModal').classList.remove('hidden');
+}
+
+function closeLocationModal() {
+  document.getElementById('locationModal').classList.add('hidden');
+  editingLocationIdx = null;
+}
+
+function saveLocation() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const name = document.getElementById('locationName').value.trim();
+  const desc = document.getElementById('locationDesc').value.trim();
+  if (!name) { showToast('Nama lokasi harus diisi!', 'error'); return; }
+  
+  if (editingLocationIdx !== null) {
+    state.boxes[editingLocationIdx].name = name;
+    state.boxes[editingLocationIdx].desc = desc;
+    showToast('Lokasi berhasil diupdate!');
+  } else {
+    const newBox = {
+      id: Date.now(),
+      name: name,
+      desc: desc,
+      items: state.boxes[0] ? state.boxes[0].items.map(item => ({ ...item, current: item.standard })) : DEFAULT_ITEMS.map(item => ({ ...item, current: item.standard }))
+    };
+    state.boxes.push(newBox);
+    showToast('Lokasi baru berhasil ditambahkan!');
+  }
+  saveState();
+  closeLocationModal();
+  populateFloorSelects();
+  renderLocationsGrid();
+}
+
+function deleteLocation(idx) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const locName = state.boxes[idx].name;
+  if (state.boxes.length <= 1) {
+    showToast('Minimal harus ada 1 lokasi!', 'error');
+    return;
+  }
+  if (!confirm(`Hapus lokasi "${locName}"?`)) return;
+  state.boxes.splice(idx, 1);
+  state.logs.forEach(log => {
+    if (log.floorIdx > idx) log.floorIdx--;
+    else if (log.floorIdx === idx) log.floorIdx = -1;
+  });
+  saveState();
+  populateFloorSelects();
+  renderLocationsGrid();
+  showToast('Lokasi berhasil dihapus!', 'warning');
+}
+
+// ==================== ADMIN: DATA ====================
+function backupData() {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `backup_p3k_${getToday()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast('Backup berhasil didownload!');
+}
+
+function restoreData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('⚠️ Restore akan MENGGANTI seluruh data saat ini. Lanjutkan?')) {
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.boxes || !Array.isArray(data.boxes)) throw new Error('Format file tidak valid');
+      state = data;
+      if (!state.passwords) state.passwords = { ...DEFAULT_PASSWORDS };
+      if (!state.logs) state.logs = [];
+      saveState();
+      showToast('Data berhasil di-restore!');
+      populateFloorSelects();
+      showView('dashboard');
+    } catch (err) {
+      showToast('File tidak valid: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearAllLogs() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!confirm('⚠️ Hapus SEMUA log? Stok tidak berubah.')) return;
+  state.logs = [];
+  saveState();
+  showToast('Semua log berhasil dihapus!', 'warning');
+}
+
+function resetSystem() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!confirm('⚠️⚠️⚠️ RESET SISTEM? Semua data akan hilang!')) return;
+  if (!confirm('Konfirmasi: YAKIN RESET?')) return;
+  localStorage.removeItem('p3k_monitor_v2');
+  state = createDefaultState();
+  saveState();
+  showToast('Sistem berhasil direset!', 'warning');
+  populateFloorSelects();
+  showView('dashboard');
+}
+
+function changePasswords() {
+  const newAdmin = document.getElementById('newAdminPass').value;
+  const newUser = document.getElementById('newUserPass').value;
+  if (newAdmin && newAdmin.length < 4) { showToast('Password admin minimal 4 karakter!', 'error'); return; }
+  if (newUser && newUser.length < 4) { showToast('Password user minimal 4 karakter!', 'error'); return; }
+  if (newAdmin) state.passwords.admin = newAdmin;
+  if (newUser) state.passwords.user = newUser;
+  saveState();
+  document.getElementById('newAdminPass').value = '';
+  document.getElementById('newUserPass').value = '';
+  showToast('Password berhasil diubah!');
+}
+
+// ==================== CLOCK ====================
+function updateClock() {
+  const now = new Date();
+  const dateEl = document.getElementById('currentDate');
+  const timeEl = document.getElementById('currentTime');
+  if (dateEl) dateEl.textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (timeEl) timeEl.textContent = now.toLocaleTimeString('id-ID');
+}
+
+// ==================== INIT ====================
+updateClock();
+setInterval(updateClock, 1000);
+checkSession();
+
+document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>
